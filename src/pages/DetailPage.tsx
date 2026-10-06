@@ -5,6 +5,7 @@ import { Icon } from "../components/Icon";
 import {
   artistName,
   descriptionParagraphs,
+  imageSource,
   type Collection,
 } from "../lib/artworks";
 import {
@@ -51,6 +52,7 @@ export function DetailPage({ collection }: { collection: Collection }) {
       </section>
     );
   const paragraphs = descriptionParagraphs(work.description);
+  const source = imageSource(work);
   const destination = (artworkId: number) =>
     detailUrl(artworkId, view, inResults ? search : "");
   return (
@@ -85,7 +87,25 @@ export function DetailPage({ collection }: { collection: Collection }) {
             </span>
           </button>
           <p className="image-credit">
-            Public domain · Art Institute of Chicago
+            Art Institute of Chicago collection
+            {source && (
+              <>
+                <br />
+                <a href={source.sourceUrl} target="_blank" rel="noreferrer">
+                  Fallback image via Wikimedia Commons
+                </a>
+                {" · "}
+                <a href={source.licenseUrl} target="_blank" rel="noreferrer">
+                  {source.license}
+                </a>
+                {source.license.startsWith("CC BY") && (
+                  <>
+                    <br />
+                    {source.credit} · Resized and converted to WebP
+                  </>
+                )}
+              </>
+            )}
           </p>
         </div>
         <div className="detail-copy">

@@ -1,5 +1,22 @@
 import axios from "axios";
 import { COLLECTION_IDS } from "../data/collection";
+import imageManifest from "../data/artwork-images.json";
+
+export interface ArtworkImageSource {
+  file: string;
+  width: number;
+  height: number;
+  sourceUrl: string;
+  license: string;
+  licenseUrl: string;
+  credit: string;
+  changes: string;
+}
+const artworkImages: Record<string, ArtworkImageSource> = imageManifest;
+
+export function imageSource(work: Artwork) {
+  return artworkImages[String(work.id)];
+}
 
 export interface Artwork {
   id: number;
@@ -85,7 +102,12 @@ export function imageUrl(
   iiifUrl: string,
   size: 400 | 843 = 843,
 ) {
+  // The museum API supplies both the IIIF base URL and the image identifier.
   return `${iiifUrl}/${work.image_id}/full/${size},/0/default.jpg`;
+}
+export function fallbackImageUrl(work: Artwork) {
+  const source = imageSource(work);
+  return source ? `${import.meta.env.BASE_URL}${source.file}` : undefined;
 }
 export function artistName(work: Artwork) {
   return work.artist_title || "Unknown artist";

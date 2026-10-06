@@ -44,7 +44,7 @@ export function Layout({ children }: { children: ReactNode }) {
           <p>A little space for a closer look.</p>
         </div>
         <p>
-          Artworks & collection data courtesy of the
+          Collection data courtesy of the
           <br />
           <a href="https://www.artic.edu/" target="_blank" rel="noreferrer">
             Art Institute of Chicago ↗

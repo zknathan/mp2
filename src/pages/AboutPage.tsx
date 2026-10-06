@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { LilyMark, Icon } from "../components/Icon";
+import { COLLECTION_IDS } from "../data/collection";
 export function AboutPage() {
   return (
     <section className="about shell">
@@ -16,9 +17,10 @@ export function AboutPage() {
             Étude is a small, independent space for spending time with art.
           </p>
           <p>
-            Our selection brings together 24 works from the Art Institute of
-            Chicago, beginning with the shifting light of Claude Monet and
-            extending to the vivid worlds of his contemporaries.
+            Our selection brings together {COLLECTION_IDS.length} works from the
+            Art Institute of Chicago, beginning with the shifting light of
+            Claude Monet and extending to the vivid worlds of his
+            contemporaries.
           </p>
           <p>
             Browse by feeling, search for an old favorite, or follow one
@@ -27,7 +29,7 @@ export function AboutPage() {
           </p>
           <h2>A note on the collection</h2>
           <p>
-            Artwork images and records are provided by the{" "}
+            Artwork records are provided by the{" "}
             <a
               href="https://api.artic.edu/docs/"
               target="_blank"
@@ -41,8 +43,12 @@ export function AboutPage() {
             collection.
           </p>
           <p>
-            Displayed images are marked public domain by the museum. Artwork
-            descriptions are credited to the Art Institute of Chicago under{" "}
+            The selected artworks are marked public domain by the museum. Images
+            come from the museum, with copies from Wikimedia Commons available
+            when the museum’s image service cannot load; their
+            sources and individual reproduction licenses are linked below each
+            painting. Artwork descriptions are credited to the Art Institute of
+            Chicago under{" "}
             <a
               href="https://creativecommons.org/licenses/by/4.0/"
               target="_blank"

@@ -77,7 +77,7 @@ export function CollectionPage({
             Explore the collection <Icon name="arrow" />
           </a>
           <div className="hero-footnote">
-            <span>01 — 24</span>
+            <span>01 — {collection.artworks.length}</span>
             <span>
               Selected works from the
               <br />

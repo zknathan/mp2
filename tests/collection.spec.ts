@@ -6,23 +6,19 @@ test.beforeEach(async ({ page }) => {
   await page.route("https://api.artic.edu/api/v1/artworks?*", (route) =>
     route.fulfill({ json: fixture }),
   );
-  await page.route("https://www.artic.edu/iiif/**", (route) =>
-    route.fulfill({
-      contentType: "image/svg+xml",
-      body: '<svg xmlns="http://www.w3.org/2000/svg" width="843" height="650"><rect width="843" height="650" fill="#aab9a2"/></svg>',
-    }),
-  );
+  // A working gallery must not depend on the challenged museum image host.
+  await page.route("https://www.artic.edu/iiif/**", (route) => route.abort());
 });
 
 test("gallery filters combine, search updates while typing, and reset restores all works", async ({
   page,
 }) => {
   await page.goto("./");
-  await expect(page.locator(".art-card")).toHaveCount(24);
+  await expect(page.locator(".art-card")).toHaveCount(36);
   await page
     .getByRole("button", { name: "Post-Impressionism", exact: true })
     .click();
-  await expect(page.locator(".art-card")).toHaveCount(4);
+  await expect(page.locator(".art-card")).toHaveCount(7);
   await page.getByLabel("Filter by artist").selectOption("Vincent van Gogh");
   await expect(page.locator(".art-card")).toHaveCount(2);
   await page.getByRole("searchbox").fill("bed");
@@ -31,14 +27,14 @@ test("gallery filters combine, search updates while typing, and reset restores a
   await page.getByRole("searchbox").fill("unfindable-artwork");
   await expect(page.getByText("No works in this corner.")).toBeVisible();
   await page.getByRole("button", { name: "Show all works" }).click();
-  await expect(page.locator(".art-card")).toHaveCount(24);
+  await expect(page.locator(".art-card")).toHaveCount(36);
 });
 
 test("list search, three sort properties in both directions, and context survive navigation", async ({
   page,
 }) => {
   await page.goto("./list?q=monet");
-  await expect(page.locator(".art-row")).toHaveCount(10);
+  await expect(page.locator(".art-row")).toHaveCount(14);
   for (const sort of ["title", "date", "artist"]) {
     await page.getByLabel("Sort by", { exact: true }).selectOption(sort);
     const forward = await page.locator(".row-art strong").allTextContents();
@@ -71,7 +67,7 @@ test("list search, three sort properties in both directions, and context survive
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(firstTitle!);
   await page.getByRole("link", { name: "Back to list", exact: true }).click();
   await expect(page.getByRole("searchbox")).toHaveValue("monet");
-  await expect(page.locator(".art-row")).toHaveCount(10);
+  await expect(page.locator(".art-row")).toHaveCount(14);
 });
 
 test("gallery detail opens, wraps, enlarges, and reloads directly", async ({
@@ -89,7 +85,7 @@ test("gallery detail opens, wraps, enlarges, and reloads directly", async ({
   await expect(page.locator("dialog")).not.toBeVisible();
   await page.getByRole("link", { name: /PREVIOUS WORK/ }).click();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-    "Charing Cross Bridge, London",
+    "The Basket of Apples",
   );
   await page.getByRole("link", { name: /NEXT WORK/ }).click();
   await page.reload();
@@ -116,7 +112,7 @@ test("API errors offer a working retry without fabricated content", async ({
   ).toBeVisible();
   fail = false;
   await page.getByRole("button", { name: "Try again" }).click();
-  await expect(page.locator(".art-card")).toHaveCount(24);
+  await expect(page.locator(".art-card")).toHaveCount(36);
 });
 
 test("unknown artworks, single-result details, and malformed filters are safe", async ({
@@ -127,7 +123,7 @@ test("unknown artworks, single-result details, and malformed filters are safe", 
     page.getByRole("heading", { name: "This work isn’t in our collection." }),
   ).toBeVisible();
   await page.goto("./?movement=unknown&sort=wrong");
-  await expect(page.locator(".art-card")).toHaveCount(24);
+  await expect(page.locator(".art-card")).toHaveCount(36);
   await page.getByRole("searchbox").fill("Water Lilies");
   await page.locator(".art-card").click();
   await expect(
@@ -156,9 +152,9 @@ test("mobile gallery, list and detail have no horizontal overflow", async ({
 test("browser back restores collection state and broken images have a fallback", async ({
   page,
 }) => {
-  await page.route("https://www.artic.edu/iiif/**", (route) => route.abort());
+  await page.route("**/mp2/artworks/*.webp", (route) => route.abort());
   await page.goto("./?artist=Claude+Monet&sort=date&order=desc");
-  await expect(page.locator(".art-card")).toHaveCount(10);
+  await expect(page.locator(".art-card")).toHaveCount(14);
   await expect(
     page.locator(".art-card .image-unavailable").first(),
   ).toBeVisible();
@@ -169,4 +165,74 @@ test("browser back restores collection state and broken images have a fallback",
     page.getByRole("button", { name: "Sort ascending", exact: true }),
   ).toBeVisible();
   await expect(page.getByLabel("Filter by artist")).toHaveValue("Claude Monet");
+});
+
+test("all 36 actual artwork files render with the museum image host unavailable", async ({
+  page,
+}, testInfo) => {
+  const remoteImages: string[] = [];
+  page.on("request", (request) => {
+    if (request.url().includes("artic.edu/iiif"))
+      remoteImages.push(request.url());
+  });
+  await page.goto("./");
+  await expect(page.locator(".art-card")).toHaveCount(36);
+  const images = page.locator(".art-card img");
+  await expect(images).toHaveCount(36);
+  for (const img of await images.all()) {
+    await img.scrollIntoViewIfNeeded();
+    await expect
+      .poll(() =>
+        img.evaluate((node) => node.complete && node.naturalWidth >= 500),
+      )
+      .toBe(true);
+    await expect(img).toHaveAttribute("src", /^\/mp2\/artworks\/\d+\.webp$/);
+  }
+  expect(remoteImages.length).toBeGreaterThanOrEqual(36);
+  await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
+  await page.screenshot({ path: testInfo.outputPath("gallery-desktop.png") });
+  await page.goto("./artworks/111436/");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+    "The Basket of Apples",
+  );
+  const painting = page.locator(".painting-button img");
+  await expect
+    .poll(() =>
+      painting.evaluate((node) => node.complete && node.naturalWidth >= 500),
+    )
+    .toBe(true);
+  await page
+    .getByRole("button", { name: "Enlarge The Basket of Apples" })
+    .click();
+  const enlarged = page.locator("dialog img");
+  await expect
+    .poll(() =>
+      enlarged.evaluate((node) => node.complete && node.naturalWidth >= 500),
+    )
+    .toBe(true);
+  await page.keyboard.press("Escape");
+  await page.screenshot({ path: testInfo.outputPath("detail-desktop.png") });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("./");
+  await expect(page.locator(".art-card")).toHaveCount(36);
+  await expect
+    .poll(() =>
+      page
+        .locator(".hero-art img")
+        .evaluate((node) => node.complete && node.naturalWidth >= 500),
+    )
+    .toBe(true);
+  await page.screenshot({ path: testInfo.outputPath("gallery-mobile.png") });
+});
+
+test("available museum media uses the image URL supplied by the API", async ({ page }) => {
+  const work = fixture.data.find((item) => item.id === 16568)!;
+  const primary = `${fixture.config.iiif_url}/${work.image_id}/full/843,/0/default.jpg`;
+  await page.route(primary, (route) =>
+    route.fulfill({ path: "public/artworks/16568.webp", contentType: "image/webp" }),
+  );
+  await page.goto("./artworks/16568/");
+  const painting = page.locator(".painting-button img");
+  await expect.poll(() => painting.evaluate((node) => node.complete && node.naturalWidth >= 500)).toBe(true);
+  await expect(painting).toHaveAttribute("src", primary);
 });

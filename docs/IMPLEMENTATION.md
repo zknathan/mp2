@@ -1,6 +1,6 @@
 # Étude — A slower way to see
 
-A React + TypeScript single-page exhibition of 24 selected Impressionist,
+A React + TypeScript single-page exhibition of 36 selected Impressionist,
 Post-Impressionist, and Pointillist paintings from the Art Institute of Chicago.
 The design draws on Monet's muted greens, reflected light, and spacious compositions.
 The original assignment README is preserved unchanged.
@@ -30,7 +30,7 @@ npm run preview
 | Axios API requests                     | `src/lib/artworks.ts`, a single batched museum request with a timeout and in-memory promise cache                                    |
 | Searchable list                        | `/list`, updates on every keystroke; matches title, artist, date, movement, and medium; accents and case are normalized              |
 | At least two sort properties           | Title, year created, and artist; every choice supports ascending and descending order                                                |
-| Image gallery with filters             | `/`, museum IIIF images; movement buttons and an artist selector combine with search                                                 |
+| Image gallery with filters             | `/`, API-derived museum images with bundled fallback copies; movement buttons and an artist selector combine with search              |
 | Clicking list or gallery opens details | Both link to `/artworks/:id`                                                                                                         |
 | Detail attributes                      | Title, artist, date, museum description, medium, dimensions, origin, credit, and museum link                                         |
 | Previous and next                      | Cycle through the current filtered/sorted result set; wrap at either end; direct links use the complete exhibition                   |
@@ -40,10 +40,13 @@ npm run preview
 | Styling restrictions                   | External CSS; no inline styles, inline scripts, or layout tables                                                                     |
 | Responsive layout                      | Desktop, tablet, and phone layouts; keyboard focus, skip link, labels, status announcements, and reduced-motion support              |
 
-The search is scoped to these **24 selected works**, not the entire museum catalog.
+The search is scoped to these **36 selected works**, not the entire museum catalog.
 This is intentional and is stated in the interface. The initial order is curated;
-all metadata and image identifiers come from the live API. No artwork records are
-hardcoded into the production app. The recorded test fixture is used only by tests.
+artwork records and image identifiers come from the live API. Images first use
+the API's `config.iiif_url` and each record's `image_id`. If that image request
+fails, the image component automatically tries the credited, bundled copy for
+the same artwork ID. Artwork records are not hardcoded into production. The
+recorded test fixture is used only by tests.
 A single-result detail disables previous/next and offers a link to the full
 collection instead of suggesting that there are other works in that selection.
 
@@ -53,7 +56,7 @@ collection instead of suggesting that there are other works in that selection.
 - Router basename: `import.meta.env.BASE_URL`.
 - Internal page navigation uses React Router links; same-page anchors scroll to the collection.
 - The Vite build emits an `index.html` inside `list/`, `about/`, and each of the
-  24 supported `artworks/<id>/` directories. This allows direct detail links and
+  36 supported `artworks/<id>/` directories. This allows direct detail links and
   refreshes to work on GitHub Pages, which does not support SPA rewrite rules.
 - A `404.html` copy renders the app's friendly not-found view for unknown routes.
 - The existing `.github/workflows/deploy.yml` is preserved. It deploys on pushes to
@@ -72,13 +75,16 @@ npx playwright install chromium
 npm test
 ```
 
-Seven Playwright scenarios exercise gallery/list search, composed filters, all
+Nine Playwright scenarios exercise gallery/list search, composed filters, all
 three sort properties in both directions, routed detail navigation and wrapping,
 refresh, the image dialog, browser back, API failure/retry, malformed URLs,
 empty/single results, unavailable images, and mobile overflow at 375 px.
-The tests intercept the API with recorded museum data and use neutral image test
-fixtures, so museum uptime does not affect interaction tests. The production app
-always calls the real API. `npm test` builds the app and starts a preview server.
+The tests intercept metadata with recorded museum data, so museum uptime does not
+affect interaction tests. They verify that available museum media keeps its
+API-derived image URL, then block the museum image host and verify all 36 actual
+fallback files decode, including gallery, detail, and enlargement views. The
+production app still calls the real museum API for records. `npm test` builds
+the app and starts a preview server.
 
 For containers with a separately installed Chromium, the optional
 `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` variable selects that binary.
@@ -105,10 +111,20 @@ For containers with a separately installed Chromium, the optional
   CC BY 4.0 and converted from HTML to text paragraphs. Every detail page credits
   the museum and links to its canonical artwork record. Only records with
   `is_public_domain: true` and an image are displayed.
-- Images: museum IIIF URLs constructed from `config.iiif_url` and `image_id`, using
-  its recommended `/full/843,/0/default.jpg` size. Images are remotely hosted;
-  metadata, images, and Google Fonts require network access. Font fallbacks remain
-  usable when Google Fonts is unavailable.
+- Image fallbacks: credited Wikimedia Commons copies are bundled as WebP assets under
+  `public/artworks/`, served from the same origin as the app. Each copy was matched
+  to its museum artwork ID through Wikidata property P4610. See
+  `src/data/artwork-images.json` and [IMAGE_CREDITS.md](IMAGE_CREDITS.md) for file
+  sources, individual reproduction licenses, and conversion notes. Two
+  photographic reproductions are CC BY-SA 4.0, with source attribution and
+  license links displayed under the corresponding paintings. Those converted
+  image files retain that license.
+- Image-loading root cause: the museum's IIIF host returned HTTP 403 with
+  `Cf-Mitigated: challenge` and `Cross-Origin-Resource-Policy: same-origin`.
+  An image element cannot display the resulting Cloudflare HTML challenge. The
+  curated collection now automatically falls back to same-origin files when
+  the museum image request fails; it uses no third-party image proxies. Museum
+  metadata and Google Fonts still require network access.
 - React Router documentation: <https://reactrouter.com/start/declarative/installation>.
 - Axios documentation: <https://axios-http.com/docs/intro> and
   <https://axios-http.com/docs/cancellation>.
@@ -117,6 +133,23 @@ For containers with a separately installed Chromium, the optional
   with OpenAI ChatGPT/Codex assistance. No third-party site template was copied.
 
 ## Course submission reminder
+
+### Requirements recheck (October 6, 2026)
+
+The original README and supplied PDF both require API content, Axios, TypeScript,
+React Router, a searchable/sortable list, a filterable image gallery, and routed
+details with previous/next navigation. The checklist above maps each to its
+implementation. The image repair preserves the API as the primary image source
+and uses bundled reproductions only after an image-loading error. The README
+explicitly allows local responses during API outages and client-side search and
+sorting. The PDF introduces no additional mandatory package beyond those used.
+Source inspection confirms no inline styling, inline script bodies, or layout
+tables; the external Vite module script remains required. The original README,
+deployment workflow, lockfile, Vite base, and router basename are preserved.
+
+Deployment and course submission are separate from implementation: the feature
+branch must be merged and GitHub Pages deployed, then the required demo video,
+source code, chat logs, and grading form must be submitted by the student.
 
 The assignment explicitly permits LLM-generated code and requires submitting the
 chat logs with the source code and answering the LLM-use survey in the grading
